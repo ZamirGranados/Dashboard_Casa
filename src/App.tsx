@@ -229,7 +229,7 @@ function SectionTitle({ icon, children }: { icon: IconName; children: React.Reac
 async function loadFromDB() {
   const [
     { data: arr }, { data: pag }, { data: pred },
-    { data: serv }, { data: lot }, { data: gast }, { data: mesesRows }, { data: recur }, { data: servUis }, { data: otrosGastosUis },
+    { data: serv }, { data: lot }, { data: gast }, { data: mesesRows }, { data: recur }, { data: servUis }, { data: otrosGastosUis }, { data: otrosGastosCumbre },
   ] = await Promise.all([
     supabase.from('arrendatarios').select('*').order('created_at'),
     supabase.from('pagos').select('*'),
@@ -241,6 +241,7 @@ async function loadFromDB() {
     supabase.from('gastos_recurrentes').select('*').order('created_at'),
     supabase.from('servicios_uis').select('*').order('created_at'),
     supabase.from('otros_gastos_uis').select('*').order('created_at'),
+    supabase.from('otros_gastos_cumbre').select('*').order('created_at'),
   ])
 
   if (!arr?.length && !pred?.length && !serv?.length && !lot?.length && !mesesRows?.length) return null
@@ -332,7 +333,11 @@ async function loadFromDB() {
     id: g.id || Date.now() + i, nombre: g.nombre, valor: g.valor,
   }))
 
-  return { arrendatarios, prediales, servicios, serviciosUis, lotes, mesesCols, gastosVar, gastosFijos, otrosGastosFijos }
+  const otrosGastosCumbreList: OtroGastoFijo[] = (otrosGastosCumbre ?? []).map((g, i) => ({
+    id: g.id || Date.now() + i, nombre: g.nombre, valor: g.valor,
+  }))
+
+  return { arrendatarios, prediales, servicios, serviciosUis, lotes, mesesCols, gastosVar, gastosFijos, otrosGastosFijos, otrosGastosCumbreList }
 }
 
 // ── DB: save ───────────────────────────────────────────────────
@@ -345,9 +350,10 @@ async function saveToDB(state: {
   gastosVar: Record<string, GastoItem[]>
   gastosFijos: GastoItem[]
   otrosGastosFijos: OtroGastoFijo[]
+  otrosGastosCumbreList: OtroGastoFijo[]
   mesesCols: string[]
 }) {
-  const { arrendatarios, prediales, servicios, serviciosUis, lotes, gastosVar, gastosFijos, otrosGastosFijos, mesesCols } = state
+  const { arrendatarios, prediales, servicios, serviciosUis, lotes, gastosVar, gastosFijos, otrosGastosFijos, otrosGastosCumbreList, mesesCols } = state
 
   // Supabase returns { error } instead of throwing — surface it so saving never
   // reports success when a table/column is missing or RLS blocks the write.
@@ -455,6 +461,11 @@ async function saveToDB(state: {
   check('borrar otros gastos UIS', await supabase.from('otros_gastos_uis').delete().not('id', 'is', null))
   const otrosRows = otrosGastosFijos.filter(g => g.nombre && g.valor > 0).map(g => ({ nombre: g.nombre, valor: g.valor }))
   if (otrosRows.length > 0) check('guardar otros gastos UIS', await supabase.from('otros_gastos_uis').insert(otrosRows))
+
+  // Otros gastos (Edificio Cumbre)
+  check('borrar otros gastos Cumbre', await supabase.from('otros_gastos_cumbre').delete().not('id', 'is', null))
+  const otrosRowsCumbre = otrosGastosCumbreList.filter(g => g.nombre && g.valor > 0).map(g => ({ nombre: g.nombre, valor: g.valor }))
+  if (otrosRowsCumbre.length > 0) check('guardar otros gastos Cumbre', await supabase.from('otros_gastos_cumbre').insert(otrosRowsCumbre))
 
   // Persist the month list so empty months survive a reload too
   check('borrar meses', await supabase.from('meses').delete().not('id', 'is', null))
@@ -1064,6 +1075,10 @@ function EdificioBGA({
   onUpdateServicio,
   onAddServicio,
   onRemoveServicio,
+  otrosGastosCumbre,
+  onUpdateOtroGasto,
+  onAddOtroGasto,
+  onRemoveOtroGasto,
   onSave,
   saving,
 }: {
@@ -1078,6 +1093,10 @@ function EdificioBGA({
   onUpdateServicio: UpdateServicioFn
   onAddServicio: () => void
   onRemoveServicio: (index: number) => void
+  otrosGastosCumbre: OtroGastoFijo[]
+  onUpdateOtroGasto: (id: number, changes: Partial<OtroGastoFijo>) => void
+  onAddOtroGasto: () => void
+  onRemoveOtroGasto: (id: number) => void
   onSave: () => void
   saving: boolean
 }) {
@@ -1098,6 +1117,8 @@ function EdificioBGA({
       <SectionTitle icon="building">Edificio Cumbre</SectionTitle>
 
       <ServiciosPublicosCard servicios={servicios} onUpdate={onUpdateServicio} onAdd={onAddServicio} onRemove={onRemoveServicio} onSave={onSave} saving={saving} />
+
+      <OtrosGastosCard otrosGastos={otrosGastosCumbre} onUpdate={onUpdateOtroGasto} onAdd={onAddOtroGasto} onRemove={onRemoveOtroGasto} onSave={onSave} saving={saving} />
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
@@ -1386,6 +1407,7 @@ function Finanzas({
   gastosFijos,
   serviciosUis,
   otrosGastosFijos,
+  otrosGastosCumbre,
   addGasto,
   removeGasto,
   updateGasto,
@@ -1403,6 +1425,7 @@ function Finanzas({
   gastosFijos: GastoItem[]
   serviciosUis: ServicioPublico[]
   otrosGastosFijos: OtroGastoFijo[]
+  otrosGastosCumbre: OtroGastoFijo[]
   addGasto: (mes: string) => void
   removeGasto: (mes: string, id: number) => void
   updateGasto: (mes: string, id: number, changes: Partial<GastoItem>) => void
@@ -1427,6 +1450,9 @@ function Finanzas({
   // Servicios públicos Edificio Cumbre
   const totalServiciosCumbre = (servicios || []).reduce((sum: number, s: ServicioPublico) => sum + s.monto, 0)
 
+  // Otros gastos Edificio Cumbre
+  const totalOtrosGastosCumbre = (otrosGastosCumbre || []).reduce((sum: number, g: OtroGastoFijo) => sum + g.valor, 0)
+
   // Gastos internos (gastos_recurrentes y gastos_fijos por mes)
   const totalGastosFijos = gastosFijos.reduce((sum, g) => sum + g.monto, 0)
   const totalGastosMes = gastosDelMes.reduce((sum, g) => sum + g.monto, 0)
@@ -1437,7 +1463,7 @@ function Finanzas({
   const totalGastosUis = totalServiciosUis + totalOtrosGastosUis
 
   // Total de gastos y saldo
-  const totalGastos = totalServiciosCumbre + totalGastosFijos + totalGastosMes + totalGastosUis
+  const totalGastos = totalServiciosCumbre + totalOtrosGastosCumbre + totalGastosFijos + totalGastosMes + totalGastosUis
   const saldo = totalRecibido - totalGastos
 
   const computedMeses = mesesCols.map((mes: string) => {
@@ -1483,17 +1509,21 @@ function Finanzas({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-            <p className="font-semibold text-gray-800 dark:text-white">Servicios Edificio Cumbre</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Energía, agua, gas, internet, administración</p>
+            <p className="font-semibold text-gray-800 dark:text-white">Gastos Edificio Cumbre</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Servicios públicos + otros gastos</p>
           </div>
           <div className="px-6 py-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-700 dark:text-gray-300">Servicios públicos</span>
               <span className="font-semibold text-gray-800 dark:text-white">{cop(totalServiciosCumbre)}</span>
             </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700 dark:text-gray-300">Otros gastos</span>
+              <span className="font-semibold text-gray-800 dark:text-white">{cop(totalOtrosGastosCumbre)}</span>
+            </div>
             <div className="border-t border-gray-200 dark:border-gray-700 pt-3 flex items-center justify-between">
               <span className="text-sm font-bold text-gray-800 dark:text-white">Total</span>
-              <span className="font-bold text-blue-600 dark:text-blue-400">{cop(totalServiciosCumbre)}</span>
+              <span className="font-bold text-blue-600 dark:text-blue-400">{cop(totalServiciosCumbre + totalOtrosGastosCumbre)}</span>
             </div>
           </div>
         </div>
@@ -2042,6 +2072,7 @@ export default function App() {
   const [gastosVar, setGastosVar] = useState<Record<string, GastoItem[]>>({})
   const [gastosFijos, setGastosFijos] = useState<GastoItem[]>([])
   const [otrosGastosFijos, setOtrosGastosFijos] = useState<OtroGastoFijo[]>([])
+  const [otrosGastosCumbreList, setOtrosGastosCumbreList] = useState<OtroGastoFijo[]>([])
 
   // Track the auth session (persisted by supabase-js in localStorage)
   useEffect(() => {
@@ -2068,6 +2099,7 @@ export default function App() {
         setGastosVar(data.gastosVar)
         setGastosFijos(data.gastosFijos)
         setOtrosGastosFijos(data.otrosGastosFijos)
+        setOtrosGastosCumbreList(data.otrosGastosCumbreList)
       }
       setLoadingDB(false)
     }).catch(() => setLoadingDB(false))
@@ -2088,6 +2120,7 @@ export default function App() {
         setGastosVar(data.gastosVar)
         setGastosFijos(data.gastosFijos)
         setOtrosGastosFijos(data.otrosGastosFijos)
+        setOtrosGastosCumbreList(data.otrosGastosCumbreList)
       }
       setLoadingDB(false)
     }).catch(() => setLoadingDB(false))
@@ -2097,7 +2130,7 @@ export default function App() {
     setSaving(true)
     setSaveError(null)
     try {
-      await saveToDB({ arrendatarios, prediales, servicios, serviciosUis, lotes, gastosVar, gastosFijos, otrosGastosFijos, mesesCols })
+      await saveToDB({ arrendatarios, prediales, servicios, serviciosUis, lotes, gastosVar, gastosFijos, otrosGastosFijos, otrosGastosCumbreList, mesesCols })
       setLastSaved(new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }))
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Error al guardar')
@@ -2172,6 +2205,15 @@ export default function App() {
   const updateOtroGastoFijo = (id: number, changes: Partial<OtroGastoFijo>) =>
     setOtrosGastosFijos(prev => prev.map(g => g.id === id ? { ...g, ...changes } : g))
 
+  const addOtroGastoCumbre = () =>
+    setOtrosGastosCumbreList(prev => [...prev, { id: Date.now(), nombre: '', valor: 0 }])
+
+  const removeOtroGastoCumbre = (id: number) =>
+    setOtrosGastosCumbreList(prev => prev.filter(g => g.id !== id))
+
+  const updateOtroGastoCumbre = (id: number, changes: Partial<OtroGastoFijo>) =>
+    setOtrosGastosCumbreList(prev => prev.map(g => g.id === id ? { ...g, ...changes } : g))
+
   const addServicio = () =>
     setServicios(prev => [...prev, { ...EMPTY_SERVICIO }])
 
@@ -2193,7 +2235,7 @@ export default function App() {
   const renderSection = () => {
     switch (section) {
       case 'inicio':     return <InicioAlertas arrendatarios={arrendatarios} servicios={servicios} lotes={lotes} mesesCols={mesesCols} gastosVar={gastosVar} gastosFijos={gastosFijos} anio={anioPredial} onNavigate={setSection} />
-      case 'bga':        return <EdificioBGA arrendatarios={arrendatarios} mesesCols={mesesCols} onUpdateArrendatario={updateArrendatario} onUpdatePago={updatePago} onAddMes={addMes} onAddArrendatario={addArrendatario} onRemoveArrendatario={removeArrendatario} servicios={servicios} onUpdateServicio={updateServicio} onAddServicio={addServicio} onRemoveServicio={removeServicio} onSave={handleSave} saving={saving} />
+      case 'bga':        return <EdificioBGA arrendatarios={arrendatarios} mesesCols={mesesCols} onUpdateArrendatario={updateArrendatario} onUpdatePago={updatePago} onAddMes={addMes} onAddArrendatario={addArrendatario} onRemoveArrendatario={removeArrendatario} servicios={servicios} onUpdateServicio={updateServicio} onAddServicio={addServicio} onRemoveServicio={removeServicio} otrosGastosCumbre={otrosGastosCumbreList} onUpdateOtroGasto={updateOtroGastoCumbre} onAddOtroGasto={addOtroGastoCumbre} onRemoveOtroGasto={removeOtroGastoCumbre} onSave={handleSave} saving={saving} />
       case 'apto-uis':   return <ApartamentoUis servicios={serviciosUis} onUpdate={updateServicioUis} onAdd={addServicioUis} onRemove={removeServicioUis} otrosGastos={otrosGastosFijos} onUpdateOtroGasto={updateOtroGastoFijo} onAddOtroGasto={addOtroGastoFijo} onRemoveOtroGasto={removeOtroGastoFijo} onSave={handleSave} saving={saving} />
       case 'barichara':  return <LotesBarichara lotes={lotes} addLote={addLote} removeLote={removeLote} updateLote={updateLote} anio={anioPredial} setAnio={setAnioPredial} onSave={handleSave} saving={saving} />
       case 'prediales':  return <ImpuestosPrediales lotes={lotes} anio={anioPredial} setAnio={setAnioPredial} updateLote={updateLote} onSave={handleSave} saving={saving} />
@@ -2206,6 +2248,7 @@ export default function App() {
           gastosFijos={gastosFijos}
           serviciosUis={serviciosUis}
           otrosGastosFijos={otrosGastosFijos}
+          otrosGastosCumbre={otrosGastosCumbreList}
           addGasto={addGasto}
           removeGasto={removeGasto}
           updateGasto={updateGasto}
