@@ -1381,6 +1381,7 @@ function GastoRow({ gasto, onChange, onRemove }: {
 function Finanzas({
   arrendatarios,
   mesesCols,
+  servicios,
   gastosVar,
   gastosFijos,
   serviciosUis,
@@ -1397,6 +1398,7 @@ function Finanzas({
 }: {
   arrendatarios: Arrendatario[]
   mesesCols: string[]
+  servicios: ServicioPublico[]
   gastosVar: Record<string, GastoItem[]>
   gastosFijos: GastoItem[]
   serviciosUis: ServicioPublico[]
@@ -1422,10 +1424,12 @@ function Finanzas({
 
   const totalRecibido = arrendatarios.reduce((sum, a) => sum + recibidoMes(a, mesFiltro), 0)
 
-  // Gastos Edificio Cumbre
+  // Servicios públicos Edificio Cumbre
+  const totalServiciosCumbre = (servicios || []).reduce((sum: number, s: ServicioPublico) => sum + s.monto, 0)
+
+  // Gastos internos (gastos_recurrentes y gastos_fijos por mes)
   const totalGastosFijos = gastosFijos.reduce((sum, g) => sum + g.monto, 0)
   const totalGastosMes = gastosDelMes.reduce((sum, g) => sum + g.monto, 0)
-  const totalGastosEdificio = totalGastosFijos + totalGastosMes
 
   // Gastos Apartamento UIS
   const totalServiciosUis = serviciosUis.reduce((sum, s) => sum + s.monto, 0)
@@ -1433,14 +1437,14 @@ function Finanzas({
   const totalGastosUis = totalServiciosUis + totalOtrosGastosUis
 
   // Total de gastos y saldo
-  const totalGastos = totalGastosEdificio + totalGastosUis
+  const totalGastos = totalServiciosCumbre + totalGastosFijos + totalGastosMes + totalGastosUis
   const saldo = totalRecibido - totalGastos
 
   const computedMeses = mesesCols.map((mes: string) => {
     const arriendos = arrendatarios.reduce((sum, a) => sum + recibidoMes(a, mes), 0)
     const gastosMesVar = (gastosVar[mes] ?? []).reduce((sum, g) => sum + g.monto, 0)
-    const gastos = totalGastosEdificio + totalGastosUis
-    return { mes, arriendos, gastosFijos: totalGastosEdificio, gastosVar: gastosMesVar, gastos }
+    const gastos = totalServiciosCumbre + totalGastosFijos + gastosMesVar + totalGastosUis
+    return { mes, arriendos, gastosFijos: totalGastosFijos, gastosVar: gastosMesVar, gastos }
   })
 
   return (
@@ -1479,21 +1483,17 @@ function Finanzas({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-            <p className="font-semibold text-gray-800 dark:text-white">Gastos Edificio Cumbre</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Arriendos y servicios comunes</p>
+            <p className="font-semibold text-gray-800 dark:text-white">Servicios Edificio Cumbre</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Energía, agua, gas, internet, administración</p>
           </div>
           <div className="px-6 py-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700 dark:text-gray-300">Gastos fijos</span>
-              <span className="font-semibold text-gray-800 dark:text-white">{cop(totalGastosFijos)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700 dark:text-gray-300">Gastos del mes</span>
-              <span className="font-semibold text-gray-800 dark:text-white">{cop(totalGastosMes)}</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">Servicios públicos</span>
+              <span className="font-semibold text-gray-800 dark:text-white">{cop(totalServiciosCumbre)}</span>
             </div>
             <div className="border-t border-gray-200 dark:border-gray-700 pt-3 flex items-center justify-between">
               <span className="text-sm font-bold text-gray-800 dark:text-white">Total</span>
-              <span className="font-bold text-blue-600 dark:text-blue-400">{cop(totalGastosEdificio)}</span>
+              <span className="font-bold text-blue-600 dark:text-blue-400">{cop(totalServiciosCumbre)}</span>
             </div>
           </div>
         </div>
@@ -1501,7 +1501,7 @@ function Finanzas({
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
             <p className="font-semibold text-gray-800 dark:text-white">Gastos Apartamento UIS</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Servicios y otros gastos</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Servicios públicos + otros gastos fijos</p>
           </div>
           <div className="px-6 py-4 space-y-3">
             <div className="flex items-center justify-between">
@@ -2201,6 +2201,7 @@ export default function App() {
         <Finanzas
           arrendatarios={arrendatarios}
           mesesCols={mesesCols}
+          servicios={servicios}
           gastosVar={gastosVar}
           gastosFijos={gastosFijos}
           serviciosUis={serviciosUis}
