@@ -545,16 +545,11 @@ function YearInput({ anio, setAnio }: { anio: number; setAnio: (n: number) => vo
 
 // ── Section: Inicio / Alertas ──────────────────────────────────
 function InicioAlertas({
-  arrendatarios, servicios, lotes, mesesCols, gastosVar, gastosFijos, anio, onNavigate,
+  servicios, lotes, anio,
 }: {
-  arrendatarios: Arrendatario[]
   servicios: ServicioPublico[]
   lotes: Lote[]
-  mesesCols: string[]
-  gastosVar: Record<string, GastoItem[]>
-  gastosFijos: GastoItem[]
   anio: number
-  onNavigate: (section: string) => void
 }) {
   const lotePredialAlerts = lotes.filter(l => lotePredialDe(l, anio).estado !== 'pagado')
   const servicioAlerts = servicios
@@ -573,25 +568,6 @@ function InicioAlertas({
     return                   { text: `${dias} días`,    cls: 'text-gray-500 dark:text-gray-400' }
   }
 
-  const ultimoMes = mesesCols[mesesCols.length - 1]
-  const totalRecibidoUltimoMes = arrendatarios.reduce((s, a) => s + recibidoMes(a, ultimoMes), 0)
-  const totalGastosUltimoMes =
-    gastosFijos.reduce((s, g) => s + g.monto, 0) +
-    (gastosVar[ultimoMes] ?? []).reduce((s, g) => s + g.monto, 0)
-  const saldoUltimoMes = totalRecibidoUltimoMes - totalGastosUltimoMes
-  const predialPendienteTotal = lotes
-    .map(l => lotePredialDe(l, anio))
-    .filter(lp => lp.estado !== 'pagado')
-    .reduce((s, lp) => s + lp.monto, 0)
-
-  const navCards: { id: string; icon: IconName; label: string; stat: string }[] = [
-    { id: 'bga',        icon: 'building', label: 'Edificio Cumbre',     stat: `${arrendatarios.length} arrendatarios` },
-    { id: 'apto-uis',   icon: 'home',     label: 'Apartamento UIS',     stat: 'Servicios públicos' },
-    { id: 'barichara',  icon: 'mountain', label: 'Lotes',               stat: `${lotes.length} lotes` },
-    { id: 'finanzas',   icon: 'wallet',   label: 'Finanzas',            stat: `Saldo ${mesLabel(ultimoMes)}: ${cop(saldoUltimoMes)}` },
-    { id: 'prediales',  icon: 'landmark', label: 'Impuestos Prediales', stat: predialPendienteTotal > 0 ? `Por pagar: ${cop(predialPendienteTotal)}` : 'Todo pagado' },
-    { id: 'contratos',  icon: 'file',     label: 'Contratos Cumbre',    stat: 'PDFs de contratos' },
-  ]
 
   return (
     <div className="space-y-8">
@@ -721,27 +697,6 @@ function InicioAlertas({
             </div>
           </div>
         )}
-      </div>
-
-      <div>
-        <h2 className="flex items-center gap-2.5 text-xl font-bold tracking-tight text-slate-800 dark:text-white mb-4">
-          <Icon name="grid" className="w-5 h-5 text-brand-500" /> Secciones
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {navCards.map(card => (
-            <button
-              key={card.id}
-              onClick={() => onNavigate(card.id)}
-              className="group bg-white dark:bg-gray-800/70 rounded-2xl shadow-card border border-slate-200/70 dark:border-white/5 p-5 text-left hover:border-brand-300 dark:hover:border-brand-500/40 hover:shadow-md hover:-translate-y-0.5 transition-all"
-            >
-              <span className="grid place-items-center w-11 h-11 mb-3 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-gray-400 group-hover:bg-brand-500 group-hover:text-white transition-colors">
-                <Icon name={card.icon} className="w-[22px] h-[22px]" />
-              </span>
-              <p className="font-semibold text-slate-800 dark:text-white text-sm group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">{card.label}</p>
-              <p className="text-xs text-slate-500 dark:text-gray-400 mt-1 truncate">{card.stat}</p>
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   )
@@ -2303,7 +2258,7 @@ export default function App() {
 
   const renderSection = () => {
     switch (section) {
-      case 'inicio':     return <InicioAlertas arrendatarios={arrendatarios} servicios={servicios} lotes={lotes} mesesCols={mesesCols} gastosVar={gastosVar} gastosFijos={gastosFijos} anio={anioPredial} onNavigate={setSection} />
+      case 'inicio':     return <InicioAlertas servicios={servicios} lotes={lotes} anio={anioPredial} />
       case 'bga':        return <EdificioBGA arrendatarios={arrendatarios} mesesCols={mesesCols} onUpdateArrendatario={updateArrendatario} onUpdatePago={updatePago} onAddMes={addMes} onAddArrendatario={addArrendatario} onRemoveArrendatario={removeArrendatario} servicios={servicios} onUpdateServicio={updateServicio} onAddServicio={addServicio} onRemoveServicio={removeServicio} otrosGastosCumbre={otrosGastosCumbreList} onUpdateOtroGasto={updateOtroGastoCumbre} onAddOtroGasto={addOtroGastoCumbre} onRemoveOtroGasto={removeOtroGastoCumbre} onSave={handleSave} saving={saving} />
       case 'apto-uis':   return <ApartamentoUis servicios={serviciosUis} onUpdate={updateServicioUis} onAdd={addServicioUis} onRemove={removeServicioUis} otrosGastos={otrosGastosFijos} onUpdateOtroGasto={updateOtroGastoFijo} onAddOtroGasto={addOtroGastoFijo} onRemoveOtroGasto={removeOtroGastoFijo} onSave={handleSave} saving={saving} />
       case 'barichara':  return <LotesBarichara lotes={lotes} addLote={addLote} removeLote={removeLote} updateLote={updateLote} anio={anioPredial} setAnio={setAnioPredial} onSave={handleSave} saving={saving} />
