@@ -992,11 +992,61 @@ function ApartamentoUis({
   onSave: () => void
   saving: boolean
 }) {
+  const totalServicios = servicios.reduce((sum, s) => sum + s.monto, 0)
+  const totalOtrosGastos = otrosGastos.reduce((sum, g) => sum + g.valor, 0)
+  const gastoTotal = totalServicios + totalOtrosGastos
+
   return (
     <div className="space-y-6">
       <SectionTitle icon="home">Apartamento UIS</SectionTitle>
       <ServiciosPublicosCard servicios={servicios} onUpdate={onUpdate} onAdd={onAdd} onRemove={onRemove} onSave={onSave} saving={saving} />
       <OtrosGastosCard otrosGastos={otrosGastos} onUpdate={onUpdateOtroGasto} onAdd={onAddOtroGasto} onRemove={onRemoveOtroGasto} onSave={onSave} saving={saving} />
+
+      {/* Resumen de gasto mensual */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+          <p className="font-semibold text-gray-800 dark:text-white">Gasto mensual total</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Servicios públicos + Otros gastos fijos</p>
+        </div>
+        <div className="p-6 flex flex-col sm:flex-row items-center justify-between gap-8">
+          <div className="flex-shrink-0">
+            <DonutChart
+              segments={[
+                { value: totalServicios, color: '#3b82f6' },
+                { value: totalOtrosGastos, color: '#ef4444' },
+              ]}
+              size={140}
+              stroke={16}
+            >
+              <div className="text-center leading-none">
+                <p className="text-xl font-bold tracking-tight text-gray-800 dark:text-white">{copCompact(gastoTotal)}</p>
+                <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 mt-1">mensual</p>
+              </div>
+            </DonutChart>
+          </div>
+
+          <div className="flex-1 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Servicios públicos</span>
+              </div>
+              <span className="font-semibold text-gray-800 dark:text-white">{cop(totalServicios)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ef4444' }} />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Otros gastos fijos</span>
+              </div>
+              <span className="font-semibold text-gray-800 dark:text-white">{cop(totalOtrosGastos)}</span>
+            </div>
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3 flex items-center justify-between">
+              <span className="text-sm font-bold text-gray-800 dark:text-white">Total mensual</span>
+              <span className="text-lg font-bold text-blue-600 dark:text-blue-400">{cop(gastoTotal)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
