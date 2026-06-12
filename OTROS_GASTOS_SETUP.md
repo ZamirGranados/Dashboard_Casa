@@ -1,8 +1,8 @@
-# Guía de Instalación: Otros Gastos Fijos
+# Guía de Instalación: Otros Gastos Fijos (Apartamento UIS)
 
 ## ¿Qué se agregó?
 
-Se ha añadido una nueva sección **"Otros gastos fijos"** en el apartado del **Edificio Cumbre** que permite:
+Se ha añadido una nueva sección **"Otros gastos fijos"** en el apartado **Apartamento UIS** que permite:
 - ✅ Agregar gastos adicionales (mantenimiento, seguros, etc.)
 - ✅ Editar nombres y montos
 - ✅ Eliminar gastos
@@ -19,8 +19,8 @@ Abre tu dashboard de Supabase y ve a:
 Copia y pega el contenido del archivo `sql_otros_gastos.sql` y ejecuta (clic en el botón **Run**).
 
 ```sql
--- Crear tabla para otros gastos fijos del Edificio Cumbre
-CREATE TABLE IF NOT EXISTS otros_gastos_fijos (
+-- Crear tabla para otros gastos fijos del Apartamento UIS
+CREATE TABLE IF NOT EXISTS otros_gastos_uis (
   id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
   nombre TEXT NOT NULL,
   valor BIGINT NOT NULL,
@@ -29,32 +29,32 @@ CREATE TABLE IF NOT EXISTS otros_gastos_fijos (
 );
 
 -- Habilitar RLS (Row Level Security)
-ALTER TABLE otros_gastos_fijos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE otros_gastos_uis ENABLE ROW LEVEL SECURITY;
 
--- Crear políticas de acceso (sin restricciones para desarrollo)
-CREATE POLICY "Allow all access to otros_gastos_fijos" ON otros_gastos_fijos
+-- Crear política de acceso (sin restricciones para desarrollo)
+CREATE POLICY "Allow all access to otros_gastos_uis" ON otros_gastos_uis
   FOR ALL USING (true);
 
--- Crear índices
-CREATE INDEX IF NOT EXISTS idx_otros_gastos_fijos_created_at ON otros_gastos_fijos(created_at);
+-- Crear índice
+CREATE INDEX IF NOT EXISTS idx_otros_gastos_uis_created_at ON otros_gastos_uis(created_at);
 ```
 
 ### 2. **Verificar la tabla**
 
 Una vez ejecutado el SQL, ve a:
 - **Tables** (en el menú izquierdo)
-- Verifica que aparezca `otros_gastos_fijos` con las columnas: `id`, `nombre`, `valor`, `created_at`, `updated_at`
+- Verifica que aparezca `otros_gastos_uis` con las columnas: `id`, `nombre`, `valor`, `created_at`, `updated_at`
 
 ### 3. **Usar la funcionalidad**
 
 1. Inicia la app con `npm run dev`
-2. Ve a **Edificio Cumbre** (en las tarjetas de navegación)
+2. Ve a **Apartamento UIS** (en las tarjetas de navegación)
 3. Verás:
    - **Servicios públicos** (arriba)
-   - **Otros gastos fijos** (nuevo, abajo)
+   - **Otros gastos fijos** (nuevo, debajo de servicios públicos)
 4. Haz clic en **"Agregar gasto"** para añadir un nuevo gasto
 5. Completa el concepto y monto
-6. Haz clic en **"Guardar"** para persostir los cambios
+6. Haz clic en **"Guardar"** para persistir los cambios
 
 ## Características de la interfaz
 
@@ -74,7 +74,7 @@ Una vez ejecutado el SQL, ve a:
 
 ## Cómo se guardan los datos
 
-Los datos se guardan en la tabla `otros_gastos_fijos` de Supabase cuando:
+Los datos se guardan en la tabla `otros_gastos_uis` de Supabase cuando:
 1. Haces clic en el botón **"Guardar"**
 2. Se elimina toda la data anterior y se inserta la nueva (para mantener consistencia)
 3. Aparece el timestamp del último guardado en la parte superior derecha
@@ -88,10 +88,11 @@ Los datos se guardan en la tabla `otros_gastos_fijos` de Supabase cuando:
 
 ## Si algo falla
 
-1. **Error "tabla no existe"**: Verifica que ejecutaste el SQL correctamente
-2. **No se guardan los datos**: Verifica que Supabase tenga la tabla y que estés autenticado
+1. **Error "tabla no existe"**: Verifica que ejecutaste el SQL correctamente en Supabase
+2. **No se guardan los datos**: Verifica que Supabase tenga la tabla `otros_gastos_uis` y que estés autenticado
 3. **No aparecen los gastos al recargar**: Haz clic en el botón de refresh (arriba a la derecha)
+4. **Ves los gastos en Edificio Cumbre en lugar de Apartamento UIS**: Limpia la caché del navegador (F12 → Application → Clear storage)
 
 ---
 
-¡Listo! Ya puedes usar los otros gastos fijos en tu dashboard. 🎉
+¡Listo! Ya puedes usar los otros gastos fijos en el Apartamento UIS. 🎉

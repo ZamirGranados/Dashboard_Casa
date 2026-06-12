@@ -1,5 +1,5 @@
--- Crear tabla para otros gastos fijos del Edificio Cumbre
-CREATE TABLE IF NOT EXISTS otros_gastos_fijos (
+-- Crear tabla para otros gastos fijos del Apartamento UIS
+CREATE TABLE IF NOT EXISTS otros_gastos_uis (
   id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
   nombre TEXT NOT NULL,
   valor BIGINT NOT NULL,
@@ -8,11 +8,11 @@ CREATE TABLE IF NOT EXISTS otros_gastos_fijos (
 );
 
 -- Habilitar RLS (Row Level Security)
-ALTER TABLE otros_gastos_fijos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE otros_gastos_uis ENABLE ROW LEVEL SECURITY;
 
--- Crear políticas de acceso (sin restricciones para desarrollo)
-CREATE POLICY "Allow all access to otros_gastos_fijos" ON otros_gastos_fijos
+-- Crear política de acceso (sin restricciones para desarrollo)
+CREATE POLICY "Allow all access to otros_gastos_uis" ON otros_gastos_uis
   FOR ALL USING (true);
 
--- Crear índices
-CREATE INDEX IF NOT EXISTS idx_otros_gastos_fijos_created_at ON otros_gastos_fijos(created_at);
+-- Crear índice
+CREATE INDEX IF NOT EXISTS idx_otros_gastos_uis_created_at ON otros_gastos_uis(created_at);

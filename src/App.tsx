@@ -229,7 +229,7 @@ function SectionTitle({ icon, children }: { icon: IconName; children: React.Reac
 async function loadFromDB() {
   const [
     { data: arr }, { data: pag }, { data: pred },
-    { data: serv }, { data: lot }, { data: gast }, { data: mesesRows }, { data: recur }, { data: servUis }, { data: otrosGastos },
+    { data: serv }, { data: lot }, { data: gast }, { data: mesesRows }, { data: recur }, { data: servUis }, { data: otrosGastosUis },
   ] = await Promise.all([
     supabase.from('arrendatarios').select('*').order('created_at'),
     supabase.from('pagos').select('*'),
@@ -240,7 +240,7 @@ async function loadFromDB() {
     supabase.from('meses').select('mes').order('mes'),
     supabase.from('gastos_recurrentes').select('*').order('created_at'),
     supabase.from('servicios_uis').select('*').order('created_at'),
-    supabase.from('otros_gastos_fijos').select('*').order('created_at'),
+    supabase.from('otros_gastos_uis').select('*').order('created_at'),
   ])
 
   if (!arr?.length && !pred?.length && !serv?.length && !lot?.length && !mesesRows?.length) return null
@@ -328,7 +328,7 @@ async function loadFromDB() {
     id: Date.now() + i, nombre: g.nombre, monto: g.valor,
   }))
 
-  const otrosGastosFijos: OtroGastoFijo[] = (otrosGastos ?? []).map((g, i) => ({
+  const otrosGastosFijos: OtroGastoFijo[] = (otrosGastosUis ?? []).map((g, i) => ({
     id: g.id || Date.now() + i, nombre: g.nombre, valor: g.valor,
   }))
 
@@ -451,10 +451,10 @@ async function saveToDB(state: {
   const fijosRows = gastosFijos.filter(g => g.nombre).map(g => ({ nombre: g.nombre, valor: g.monto }))
   if (fijosRows.length > 0) check('guardar gastos fijos', await supabase.from('gastos_recurrentes').insert(fijosRows))
 
-  // Otros gastos fijos (Edificio Cumbre)
-  check('borrar otros gastos fijos', await supabase.from('otros_gastos_fijos').delete().not('id', 'is', null))
+  // Otros gastos fijos (Apartamento UIS)
+  check('borrar otros gastos UIS', await supabase.from('otros_gastos_uis').delete().not('id', 'is', null))
   const otrosRows = otrosGastosFijos.filter(g => g.nombre && g.valor > 0).map(g => ({ nombre: g.nombre, valor: g.valor }))
-  if (otrosRows.length > 0) check('guardar otros gastos fijos', await supabase.from('otros_gastos_fijos').insert(otrosRows))
+  if (otrosRows.length > 0) check('guardar otros gastos UIS', await supabase.from('otros_gastos_uis').insert(otrosRows))
 
   // Persist the month list so empty months survive a reload too
   check('borrar meses', await supabase.from('meses').delete().not('id', 'is', null))
@@ -976,11 +976,19 @@ function ResumenPagosCard({ arrendatarios, mesesCols }: { arrendatarios: Arrenda
 }
 
 // ── Section: Apartamento UIS (solo servicios públicos) ─────────
-function ApartamentoUis({ servicios, onUpdate, onAdd, onRemove, onSave, saving }: {
+function ApartamentoUis({
+  servicios, onUpdate, onAdd, onRemove,
+  otrosGastos, onUpdateOtroGasto, onAddOtroGasto, onRemoveOtroGasto,
+  onSave, saving
+}: {
   servicios: ServicioPublico[]
   onUpdate: UpdateServicioFn
   onAdd: () => void
   onRemove: (index: number) => void
+  otrosGastos: OtroGastoFijo[]
+  onUpdateOtroGasto: (id: number, changes: Partial<OtroGastoFijo>) => void
+  onAddOtroGasto: () => void
+  onRemoveOtroGasto: (id: number) => void
   onSave: () => void
   saving: boolean
 }) {
@@ -988,6 +996,7 @@ function ApartamentoUis({ servicios, onUpdate, onAdd, onRemove, onSave, saving }
     <div className="space-y-6">
       <SectionTitle icon="home">Apartamento UIS</SectionTitle>
       <ServiciosPublicosCard servicios={servicios} onUpdate={onUpdate} onAdd={onAdd} onRemove={onRemove} onSave={onSave} saving={saving} />
+      <OtrosGastosCard otrosGastos={otrosGastos} onUpdate={onUpdateOtroGasto} onAdd={onAddOtroGasto} onRemove={onRemoveOtroGasto} onSave={onSave} saving={saving} />
     </div>
   )
 }
@@ -1005,10 +1014,6 @@ function EdificioBGA({
   onUpdateServicio,
   onAddServicio,
   onRemoveServicio,
-  otrosGastosFijos,
-  onUpdateOtroGasto,
-  onAddOtroGasto,
-  onRemoveOtroGasto,
   onSave,
   saving,
 }: {
@@ -1023,10 +1028,6 @@ function EdificioBGA({
   onUpdateServicio: UpdateServicioFn
   onAddServicio: () => void
   onRemoveServicio: (index: number) => void
-  otrosGastosFijos: OtroGastoFijo[]
-  onUpdateOtroGasto: (id: number, changes: Partial<OtroGastoFijo>) => void
-  onAddOtroGasto: () => void
-  onRemoveOtroGasto: (id: number) => void
   onSave: () => void
   saving: boolean
 }) {
@@ -1047,8 +1048,6 @@ function EdificioBGA({
       <SectionTitle icon="building">Edificio Cumbre</SectionTitle>
 
       <ServiciosPublicosCard servicios={servicios} onUpdate={onUpdateServicio} onAdd={onAddServicio} onRemove={onRemoveServicio} onSave={onSave} saving={saving} />
-
-      <OtrosGastosCard otrosGastos={otrosGastosFijos} onUpdate={onUpdateOtroGasto} onAdd={onAddOtroGasto} onRemove={onRemoveOtroGasto} onSave={onSave} saving={saving} />
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
@@ -2086,8 +2085,8 @@ export default function App() {
   const renderSection = () => {
     switch (section) {
       case 'inicio':     return <InicioAlertas arrendatarios={arrendatarios} servicios={servicios} lotes={lotes} mesesCols={mesesCols} gastosVar={gastosVar} gastosFijos={gastosFijos} anio={anioPredial} onNavigate={setSection} />
-      case 'bga':        return <EdificioBGA arrendatarios={arrendatarios} mesesCols={mesesCols} onUpdateArrendatario={updateArrendatario} onUpdatePago={updatePago} onAddMes={addMes} onAddArrendatario={addArrendatario} onRemoveArrendatario={removeArrendatario} servicios={servicios} onUpdateServicio={updateServicio} onAddServicio={addServicio} onRemoveServicio={removeServicio} otrosGastosFijos={otrosGastosFijos} onUpdateOtroGasto={updateOtroGastoFijo} onAddOtroGasto={addOtroGastoFijo} onRemoveOtroGasto={removeOtroGastoFijo} onSave={handleSave} saving={saving} />
-      case 'apto-uis':   return <ApartamentoUis servicios={serviciosUis} onUpdate={updateServicioUis} onAdd={addServicioUis} onRemove={removeServicioUis} onSave={handleSave} saving={saving} />
+      case 'bga':        return <EdificioBGA arrendatarios={arrendatarios} mesesCols={mesesCols} onUpdateArrendatario={updateArrendatario} onUpdatePago={updatePago} onAddMes={addMes} onAddArrendatario={addArrendatario} onRemoveArrendatario={removeArrendatario} servicios={servicios} onUpdateServicio={updateServicio} onAddServicio={addServicio} onRemoveServicio={removeServicio} onSave={handleSave} saving={saving} />
+      case 'apto-uis':   return <ApartamentoUis servicios={serviciosUis} onUpdate={updateServicioUis} onAdd={addServicioUis} onRemove={removeServicioUis} otrosGastos={otrosGastosFijos} onUpdateOtroGasto={updateOtroGastoFijo} onAddOtroGasto={addOtroGastoFijo} onRemoveOtroGasto={removeOtroGastoFijo} onSave={handleSave} saving={saving} />
       case 'barichara':  return <LotesBarichara lotes={lotes} addLote={addLote} removeLote={removeLote} updateLote={updateLote} anio={anioPredial} setAnio={setAnioPredial} onSave={handleSave} saving={saving} />
       case 'prediales':  return <ImpuestosPrediales lotes={lotes} anio={anioPredial} setAnio={setAnioPredial} updateLote={updateLote} onSave={handleSave} saving={saving} />
       case 'finanzas':   return (
