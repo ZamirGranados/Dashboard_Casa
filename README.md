@@ -75,58 +75,6 @@ src/
     └── supabase.ts      # Configuración de Supabase
 ```
 
-## 🗂 Secciones Principales
-
-| Sección | Descripción |
-|---------|------------|
-| **Inicio** | Alertas y tarjetas de navegación rápida |
-| **Edificio BGA** | Servicios, arrendatarios y prediales del edificio |
-| **Prediales** | Resumen centralizado de impuestos prediales |
-| **Lotes Barichara** | Gestión de lotes y sus prediales |
-| **Finanzas** | KPIs, gastos mensuales y análisis |
-| **Contratos** | Upload, descarga y gestión de documentos PDF |
-
-## 💾 Base de Datos (Supabase)
-
-### Tablas necesarias
-- `arrendatarios` - Información de arrendatarios
-- `pagos` - Registro de pagos por arrendatario
-- `prediales` - Impuestos prediales por entidad/año
-- `servicios` - Servicios públicos y vencimientos
-- `lotes` - Lotes y sus datos asociados
-- `gastos_fijos` - Gastos mensuales
-
-### Bucket de Almacenamiento
-Se requiere un bucket público `contratos` en Supabase Storage para la sección de Contratos:
-
-1. Ve a Supabase Dashboard → Storage
-2. Crea un nuevo bucket con nombre `contratos`
-3. Configúralo como **público**
-
-> Si no configuras el bucket, la sección carga vacía pero no afecta el resto de la app.
-
-## 🎨 Temas y Personalización
-
-- **Dark Mode**: Está activado por defecto
-- **Colores**: Basados en la paleta de Tailwind CSS
-- **Responsive**: Completamente adaptable a dispositivos móviles
-
-## 🔑 Convenciones del Código
-
-- **Moneda**: Formateada automáticamente en COP (Colombia)
-- **Fechas**: Formato `YYYY-MM-DD`
-- **Clases CSS**: Siempre en pares dark (ej: `text-gray-800 dark:text-white`)
-- **Inputs**: Totalmente controlados, sin librerías externas de formularios
-- **Sin Context/Redux**: Todo el estado está centralizado en el componente `App`
-
-## 🤝 Contribuciones
-
-Las contribuciones son bienvenidas. Por favor:
-
-1. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-2. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-3. Push a la rama (`git push origin feature/AmazingFeature`)
-4. Abre un Pull Request
 
 ## 📝 Licencia
 
