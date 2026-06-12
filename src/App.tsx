@@ -595,62 +595,131 @@ function InicioAlertas({
 
   return (
     <div className="space-y-8">
-      <div className="space-y-4">
-        <h2 className="flex items-center gap-2.5 text-xl font-bold tracking-tight text-slate-800 dark:text-white">
-          <Icon name="bell" className="w-5 h-5 text-amber-500" /> Alertas
-        </h2>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-slate-800 dark:text-white">
+              <span className="relative flex h-6 w-6 items-center justify-center">
+                <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-red-500 opacity-30"></span>
+                <Icon name="bell" className="w-5 h-5 text-red-600 dark:text-red-400 relative" />
+              </span>
+              Alertas
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Pendientes que requieren tu atención</p>
+          </div>
+          {!noAlerts && (
+            <div className="px-3 py-1 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-full">
+              <p className="text-sm font-semibold text-red-700 dark:text-red-400">{servicioAlerts.length + lotePredialAlerts.length} pendiente{servicioAlerts.length + lotePredialAlerts.length !== 1 ? 's' : ''}</p>
+            </div>
+          )}
+        </div>
 
         {noAlerts && (
-          <div className="flex items-center justify-center gap-2 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200/70 dark:border-emerald-500/20 rounded-2xl p-6 text-center">
-            <Icon name="check" className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            <p className="text-emerald-700 dark:text-emerald-300 font-medium">Sin alertas pendientes</p>
+          <div className="relative overflow-hidden bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-500/10 dark:to-green-500/10 border border-emerald-200/70 dark:border-emerald-500/20 rounded-2xl p-8 text-center shadow-sm">
+            <div className="absolute inset-0 bg-gradient-to-b from-emerald-200/10 to-transparent dark:from-emerald-300/5"></div>
+            <div className="relative flex flex-col items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/20">
+                <Icon name="check" className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-emerald-900 dark:text-emerald-200 font-semibold text-lg">¡Todo en orden!</p>
+                <p className="text-emerald-700 dark:text-emerald-300 text-sm mt-1">No hay alertas pendientes en este momento</p>
+              </div>
+            </div>
           </div>
         )}
 
         {servicioAlerts.length > 0 && (
-          <Card title="Servicios públicos — Edificio Cumbre" icon="zap" accent="blue">
-            {servicioAlerts.map(s => {
-              const { text, cls } = urgenciaTag(s.diasRestantes)
-              const rowBg = s.diasRestantes !== null && s.diasRestantes <= 0
-                ? 'bg-red-50 dark:bg-red-900/10'
-                : s.diasRestantes !== null && s.diasRestantes <= 5 ? 'bg-orange-50 dark:bg-orange-900/10' : ''
-              return (
-                <div key={s.nombre} className={`px-6 py-4 flex justify-between items-center border-b last:border-0 border-gray-100 dark:border-gray-700 ${rowBg}`}>
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">{s.nombre}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Vence: {fechaLabel(s.fechaPago)}
-                      {s.numeroSuscriptor && <span className="ml-2 text-gray-400">· N° {s.numeroSuscriptor}</span>}
-                    </p>
+          <div className="space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wide">
+              <Icon name="zap" className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              Servicios públicos — Edificio Cumbre
+            </h3>
+            <div className="grid gap-3">
+              {servicioAlerts.map(s => {
+                const { text, cls } = urgenciaTag(s.diasRestantes)
+                const isOverdue = s.diasRestantes !== null && s.diasRestantes <= 0
+                const isUrgent = s.diasRestantes !== null && s.diasRestantes >= 1 && s.diasRestantes <= 5
+                return (
+                  <div
+                    key={s.nombre}
+                    className={`group relative overflow-hidden rounded-xl border shadow-sm transition-all hover:shadow-md ${
+                      isOverdue
+                        ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30'
+                        : isUrgent
+                        ? 'bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-500/30'
+                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/0 to-white/0 dark:via-gray-700/0 dark:to-gray-700/0 group-hover:via-white/5 transition-all"></div>
+                    <div className="relative flex items-center justify-between p-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`h-2 w-2 rounded-full flex-shrink-0 ${
+                              isOverdue ? 'bg-red-600 dark:bg-red-400 animate-pulse' : isUrgent ? 'bg-orange-500' : 'bg-gray-400'
+                            }`}
+                          ></div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-gray-900 dark:text-white">{s.nombre}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                              Vence: {fechaLabel(s.fechaPago)}
+                              {s.numeroSuscriptor && <span className="ml-2">· N° {s.numeroSuscriptor}</span>}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="ml-4 flex flex-col items-end gap-2 flex-shrink-0">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${cls}`}
+                        >
+                          {text}
+                        </span>
+                        <Badge estado={s.estado} />
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className={`text-xs ${cls}`}>{text}</span>
-                    <Badge estado={s.estado} />
-                  </div>
-                </div>
-              )
-            })}
-          </Card>
+                )
+              })}
+            </div>
+          </div>
         )}
 
         {lotePredialAlerts.length > 0 && (
-          <Card title="Prediales pendientes" icon="landmark" accent="red">
-            {lotePredialAlerts.map(l => {
-              const lp = lotePredialDe(l, anio)
-              return (
-              <div key={l.id} className="px-6 py-4 flex justify-between items-center border-b last:border-0 border-gray-100 dark:border-gray-700">
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white">{l.nombre}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Lote · Año {anio}</p>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{cop(lp.monto)}</p>
-                  <Badge estado={lp.estado} />
-                </div>
-              </div>
-              )
-            })}
-          </Card>
+          <div className="space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wide">
+              <Icon name="landmark" className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+              Prediales pendientes
+            </h3>
+            <div className="grid gap-3">
+              {lotePredialAlerts.map(l => {
+                const lp = lotePredialDe(l, anio)
+                return (
+                  <div
+                    key={l.id}
+                    className="group relative overflow-hidden rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 shadow-sm transition-all hover:shadow-md"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/0 to-white/0 dark:via-gray-700/0 dark:to-gray-700/0 group-hover:via-white/5 transition-all"></div>
+                    <div className="relative flex items-center justify-between p-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3">
+                          <div className="h-2 w-2 rounded-full flex-shrink-0 bg-rose-600 dark:bg-rose-400 animate-pulse"></div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-gray-900 dark:text-white">{l.nombre}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Lote · Año {anio}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="ml-4 flex flex-col items-end gap-2 flex-shrink-0">
+                        <p className="text-sm font-bold text-rose-700 dark:text-rose-300">{cop(lp.monto)}</p>
+                        <Badge estado={lp.estado} />
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         )}
       </div>
 
