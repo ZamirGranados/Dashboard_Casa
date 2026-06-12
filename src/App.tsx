@@ -1383,6 +1383,8 @@ function Finanzas({
   mesesCols,
   gastosVar,
   gastosFijos,
+  serviciosUis,
+  otrosGastosFijos,
   addGasto,
   removeGasto,
   updateGasto,
@@ -1397,6 +1399,8 @@ function Finanzas({
   mesesCols: string[]
   gastosVar: Record<string, GastoItem[]>
   gastosFijos: GastoItem[]
+  serviciosUis: ServicioPublico[]
+  otrosGastosFijos: OtroGastoFijo[]
   addGasto: (mes: string) => void
   removeGasto: (mes: string, id: number) => void
   updateGasto: (mes: string, id: number, changes: Partial<GastoItem>) => void
@@ -1418,16 +1422,25 @@ function Finanzas({
 
   const totalRecibido = arrendatarios.reduce((sum, a) => sum + recibidoMes(a, mesFiltro), 0)
 
+  // Gastos Edificio Cumbre
   const totalGastosFijos = gastosFijos.reduce((sum, g) => sum + g.monto, 0)
   const totalGastosMes = gastosDelMes.reduce((sum, g) => sum + g.monto, 0)
-  const totalGastos = totalGastosFijos + totalGastosMes
+  const totalGastosEdificio = totalGastosFijos + totalGastosMes
+
+  // Gastos Apartamento UIS
+  const totalServiciosUis = serviciosUis.reduce((sum, s) => sum + s.monto, 0)
+  const totalOtrosGastosUis = otrosGastosFijos.reduce((sum, g) => sum + g.valor, 0)
+  const totalGastosUis = totalServiciosUis + totalOtrosGastosUis
+
+  // Total de gastos y saldo
+  const totalGastos = totalGastosEdificio + totalGastosUis
   const saldo = totalRecibido - totalGastos
 
   const computedMeses = mesesCols.map((mes: string) => {
     const arriendos = arrendatarios.reduce((sum, a) => sum + recibidoMes(a, mes), 0)
     const gastosMesVar = (gastosVar[mes] ?? []).reduce((sum, g) => sum + g.monto, 0)
-    const gastos = totalGastosFijos + gastosMesVar
-    return { mes, arriendos, gastosFijos: totalGastosFijos, gastosVar: gastosMesVar, gastos }
+    const gastos = totalGastosEdificio + totalGastosUis
+    return { mes, arriendos, gastosFijos: totalGastosEdificio, gastosVar: gastosMesVar, gastos }
   })
 
   return (
@@ -1460,6 +1473,51 @@ function Finanzas({
           value={cop(saldo)}
           valueClass={saldo >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}
         />
+      </div>
+
+      {/* Desglose de gastos por categoría */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+            <p className="font-semibold text-gray-800 dark:text-white">Gastos Edificio Cumbre</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Arriendos y servicios comunes</p>
+          </div>
+          <div className="px-6 py-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700 dark:text-gray-300">Gastos fijos</span>
+              <span className="font-semibold text-gray-800 dark:text-white">{cop(totalGastosFijos)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700 dark:text-gray-300">Gastos del mes</span>
+              <span className="font-semibold text-gray-800 dark:text-white">{cop(totalGastosMes)}</span>
+            </div>
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-3 flex items-center justify-between">
+              <span className="text-sm font-bold text-gray-800 dark:text-white">Total</span>
+              <span className="font-bold text-blue-600 dark:text-blue-400">{cop(totalGastosEdificio)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+            <p className="font-semibold text-gray-800 dark:text-white">Gastos Apartamento UIS</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Servicios y otros gastos</p>
+          </div>
+          <div className="px-6 py-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700 dark:text-gray-300">Servicios públicos</span>
+              <span className="font-semibold text-gray-800 dark:text-white">{cop(totalServiciosUis)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700 dark:text-gray-300">Otros gastos fijos</span>
+              <span className="font-semibold text-gray-800 dark:text-white">{cop(totalOtrosGastosUis)}</span>
+            </div>
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-3 flex items-center justify-between">
+              <span className="text-sm font-bold text-gray-800 dark:text-white">Total</span>
+              <span className="font-bold text-blue-600 dark:text-blue-400">{cop(totalGastosUis)}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Gastos: fijos (todos los meses) + del mes, lado a lado */}
@@ -2145,6 +2203,8 @@ export default function App() {
           mesesCols={mesesCols}
           gastosVar={gastosVar}
           gastosFijos={gastosFijos}
+          serviciosUis={serviciosUis}
+          otrosGastosFijos={otrosGastosFijos}
           addGasto={addGasto}
           removeGasto={removeGasto}
           updateGasto={updateGasto}
