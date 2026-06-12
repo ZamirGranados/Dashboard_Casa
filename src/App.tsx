@@ -53,6 +53,12 @@ interface GastoItem {
   monto: number
 }
 
+interface OtroGastoFijo {
+  id: number
+  nombre: string
+  valor: number
+}
+
 type UpdatePagoFn = (arrendatarioId: number, mes: string, changes: Partial<{ valor: number; estado: PayStatus }>) => void
 type UpdateArrendatarioFn = (id: number, changes: Partial<Pick<Arrendatario, 'apto' | 'nombre' | 'canon' | 'venceContrato' | 'notas'>>) => void
 type UpdateServicioFn = (index: number, changes: Partial<ServicioPublico>) => void
@@ -223,7 +229,7 @@ function SectionTitle({ icon, children }: { icon: IconName; children: React.Reac
 async function loadFromDB() {
   const [
     { data: arr }, { data: pag }, { data: pred },
-    { data: serv }, { data: lot }, { data: gast }, { data: mesesRows }, { data: recur }, { data: servUis },
+    { data: serv }, { data: lot }, { data: gast }, { data: mesesRows }, { data: recur }, { data: servUis }, { data: otrosGastos },
   ] = await Promise.all([
     supabase.from('arrendatarios').select('*').order('created_at'),
     supabase.from('pagos').select('*'),
@@ -234,6 +240,7 @@ async function loadFromDB() {
     supabase.from('meses').select('mes').order('mes'),
     supabase.from('gastos_recurrentes').select('*').order('created_at'),
     supabase.from('servicios_uis').select('*').order('created_at'),
+    supabase.from('otros_gastos_fijos').select('*').order('created_at'),
   ])
 
   if (!arr?.length && !pred?.length && !serv?.length && !lot?.length && !mesesRows?.length) return null
@@ -321,7 +328,11 @@ async function loadFromDB() {
     id: Date.now() + i, nombre: g.nombre, monto: g.valor,
   }))
 
-  return { arrendatarios, prediales, servicios, serviciosUis, lotes, mesesCols, gastosVar, gastosFijos }
+  const otrosGastosFijos: OtroGastoFijo[] = (otrosGastos ?? []).map((g, i) => ({
+    id: g.id || Date.now() + i, nombre: g.nombre, valor: g.valor,
+  }))
+
+  return { arrendatarios, prediales, servicios, serviciosUis, lotes, mesesCols, gastosVar, gastosFijos, otrosGastosFijos }
 }
 
 // ── DB: save ───────────────────────────────────────────────────
@@ -333,9 +344,10 @@ async function saveToDB(state: {
   lotes: Lote[]
   gastosVar: Record<string, GastoItem[]>
   gastosFijos: GastoItem[]
+  otrosGastosFijos: OtroGastoFijo[]
   mesesCols: string[]
 }) {
-  const { arrendatarios, prediales, servicios, serviciosUis, lotes, gastosVar, gastosFijos, mesesCols } = state
+  const { arrendatarios, prediales, servicios, serviciosUis, lotes, gastosVar, gastosFijos, otrosGastosFijos, mesesCols } = state
 
   // Supabase returns { error } instead of throwing — surface it so saving never
   // reports success when a table/column is missing or RLS blocks the write.
@@ -438,6 +450,11 @@ async function saveToDB(state: {
   check('borrar gastos fijos', await supabase.from('gastos_recurrentes').delete().not('id', 'is', null))
   const fijosRows = gastosFijos.filter(g => g.nombre).map(g => ({ nombre: g.nombre, valor: g.monto }))
   if (fijosRows.length > 0) check('guardar gastos fijos', await supabase.from('gastos_recurrentes').insert(fijosRows))
+
+  // Otros gastos fijos (Edificio Cumbre)
+  check('borrar otros gastos fijos', await supabase.from('otros_gastos_fijos').delete().not('id', 'is', null))
+  const otrosRows = otrosGastosFijos.filter(g => g.nombre && g.valor > 0).map(g => ({ nombre: g.nombre, valor: g.valor }))
+  if (otrosRows.length > 0) check('guardar otros gastos fijos', await supabase.from('otros_gastos_fijos').insert(otrosRows))
 
   // Persist the month list so empty months survive a reload too
   check('borrar meses', await supabase.from('meses').delete().not('id', 'is', null))
@@ -753,6 +770,76 @@ function ServiciosPublicosCard({
   )
 }
 
+// ── Otros gastos fijos editable (lista de gastos adicionales) ──
+function OtrosGastosCard({
+  otrosGastos, onUpdate, onAdd, onRemove, onSave, saving,
+}: {
+  otrosGastos: OtroGastoFijo[]
+  onUpdate: (id: number, changes: Partial<OtroGastoFijo>) => void
+  onAdd: () => void
+  onRemove: (id: number) => void
+  onSave: () => void
+  saving: boolean
+}) {
+  const inputCls = 'w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500'
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex justify-between items-center gap-3 flex-wrap">
+        <div>
+          <span className="font-semibold text-gray-800 dark:text-white">Otros gastos fijos</span>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Gastos adicionales — mantenimiento, seguros, etc.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onAdd}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+          >
+            <Icon name="plus" className="w-4 h-4" /> Agregar gasto
+          </button>
+          <SaveButton onSave={onSave} saving={saving} />
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400">
+            <tr>
+              <Th>Concepto</Th>
+              <Th right>Monto mensual</Th>
+              <Th></Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            {otrosGastos.map(g => (
+              <tr key={g.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors">
+                <td className="px-4 py-2">
+                  <input type="text" placeholder="Ej: Seguro edificio" value={g.nombre}
+                    onChange={e => onUpdate(g.id, { nombre: e.target.value })}
+                    className={`${inputCls} min-w-[15rem]`} />
+                </td>
+                <td className="px-4 py-2 text-right">
+                  <MoneyInput value={g.valor} onChange={n => onUpdate(g.id, { valor: n })} widthClass="w-32" />
+                </td>
+                <td className="px-2 py-2 text-center">
+                  <button onClick={() => onRemove(g.id)} title="Eliminar gasto"
+                    className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"><Icon name="x" className="w-4 h-4 mx-auto" /></button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {otrosGastos.length === 0 && (
+          <div className="px-6 py-8 text-center text-gray-400 dark:text-gray-600 text-sm">
+            Sin gastos adicionales — haz clic en "Agregar gasto" para empezar
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Generic SVG donut: pass segments + center content ──────────
 function DonutChart({ segments, size = 112, stroke = 13, children }: {
   segments: { value: number; color: string }[]
@@ -918,6 +1005,10 @@ function EdificioBGA({
   onUpdateServicio,
   onAddServicio,
   onRemoveServicio,
+  otrosGastosFijos,
+  onUpdateOtroGasto,
+  onAddOtroGasto,
+  onRemoveOtroGasto,
   onSave,
   saving,
 }: {
@@ -932,6 +1023,10 @@ function EdificioBGA({
   onUpdateServicio: UpdateServicioFn
   onAddServicio: () => void
   onRemoveServicio: (index: number) => void
+  otrosGastosFijos: OtroGastoFijo[]
+  onUpdateOtroGasto: (id: number, changes: Partial<OtroGastoFijo>) => void
+  onAddOtroGasto: () => void
+  onRemoveOtroGasto: (id: number) => void
   onSave: () => void
   saving: boolean
 }) {
@@ -952,6 +1047,8 @@ function EdificioBGA({
       <SectionTitle icon="building">Edificio Cumbre</SectionTitle>
 
       <ServiciosPublicosCard servicios={servicios} onUpdate={onUpdateServicio} onAdd={onAddServicio} onRemove={onRemoveServicio} onSave={onSave} saving={saving} />
+
+      <OtrosGastosCard otrosGastos={otrosGastosFijos} onUpdate={onUpdateOtroGasto} onAdd={onAddOtroGasto} onRemove={onRemoveOtroGasto} onSave={onSave} saving={saving} />
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
@@ -1837,6 +1934,7 @@ export default function App() {
   const [mesesCols, setMesesCols] = useState<string[]>(MESES_INICIALES)
   const [gastosVar, setGastosVar] = useState<Record<string, GastoItem[]>>({})
   const [gastosFijos, setGastosFijos] = useState<GastoItem[]>([])
+  const [otrosGastosFijos, setOtrosGastosFijos] = useState<OtroGastoFijo[]>([])
 
   // Track the auth session (persisted by supabase-js in localStorage)
   useEffect(() => {
@@ -1862,6 +1960,7 @@ export default function App() {
         setMesesCols(data.mesesCols)
         setGastosVar(data.gastosVar)
         setGastosFijos(data.gastosFijos)
+        setOtrosGastosFijos(data.otrosGastosFijos)
       }
       setLoadingDB(false)
     }).catch(() => setLoadingDB(false))
@@ -1881,6 +1980,7 @@ export default function App() {
         setMesesCols(data.mesesCols)
         setGastosVar(data.gastosVar)
         setGastosFijos(data.gastosFijos)
+        setOtrosGastosFijos(data.otrosGastosFijos)
       }
       setLoadingDB(false)
     }).catch(() => setLoadingDB(false))
@@ -1890,7 +1990,7 @@ export default function App() {
     setSaving(true)
     setSaveError(null)
     try {
-      await saveToDB({ arrendatarios, prediales, servicios, serviciosUis, lotes, gastosVar, gastosFijos, mesesCols })
+      await saveToDB({ arrendatarios, prediales, servicios, serviciosUis, lotes, gastosVar, gastosFijos, otrosGastosFijos, mesesCols })
       setLastSaved(new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }))
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Error al guardar')
@@ -1956,6 +2056,15 @@ export default function App() {
   const updateGastoFijo = (id: number, changes: Partial<GastoItem>) =>
     setGastosFijos(prev => prev.map(g => g.id === id ? { ...g, ...changes } : g))
 
+  const addOtroGastoFijo = () =>
+    setOtrosGastosFijos(prev => [...prev, { id: Date.now(), nombre: '', valor: 0 }])
+
+  const removeOtroGastoFijo = (id: number) =>
+    setOtrosGastosFijos(prev => prev.filter(g => g.id !== id))
+
+  const updateOtroGastoFijo = (id: number, changes: Partial<OtroGastoFijo>) =>
+    setOtrosGastosFijos(prev => prev.map(g => g.id === id ? { ...g, ...changes } : g))
+
   const addServicio = () =>
     setServicios(prev => [...prev, { ...EMPTY_SERVICIO }])
 
@@ -1977,7 +2086,7 @@ export default function App() {
   const renderSection = () => {
     switch (section) {
       case 'inicio':     return <InicioAlertas arrendatarios={arrendatarios} servicios={servicios} lotes={lotes} mesesCols={mesesCols} gastosVar={gastosVar} gastosFijos={gastosFijos} anio={anioPredial} onNavigate={setSection} />
-      case 'bga':        return <EdificioBGA arrendatarios={arrendatarios} mesesCols={mesesCols} onUpdateArrendatario={updateArrendatario} onUpdatePago={updatePago} onAddMes={addMes} onAddArrendatario={addArrendatario} onRemoveArrendatario={removeArrendatario} servicios={servicios} onUpdateServicio={updateServicio} onAddServicio={addServicio} onRemoveServicio={removeServicio} onSave={handleSave} saving={saving} />
+      case 'bga':        return <EdificioBGA arrendatarios={arrendatarios} mesesCols={mesesCols} onUpdateArrendatario={updateArrendatario} onUpdatePago={updatePago} onAddMes={addMes} onAddArrendatario={addArrendatario} onRemoveArrendatario={removeArrendatario} servicios={servicios} onUpdateServicio={updateServicio} onAddServicio={addServicio} onRemoveServicio={removeServicio} otrosGastosFijos={otrosGastosFijos} onUpdateOtroGasto={updateOtroGastoFijo} onAddOtroGasto={addOtroGastoFijo} onRemoveOtroGasto={removeOtroGastoFijo} onSave={handleSave} saving={saving} />
       case 'apto-uis':   return <ApartamentoUis servicios={serviciosUis} onUpdate={updateServicioUis} onAdd={addServicioUis} onRemove={removeServicioUis} onSave={handleSave} saving={saving} />
       case 'barichara':  return <LotesBarichara lotes={lotes} addLote={addLote} removeLote={removeLote} updateLote={updateLote} anio={anioPredial} setAnio={setAnioPredial} onSave={handleSave} saving={saving} />
       case 'prediales':  return <ImpuestosPrediales lotes={lotes} anio={anioPredial} setAnio={setAnioPredial} updateLote={updateLote} onSave={handleSave} saving={saving} />
