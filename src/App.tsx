@@ -169,7 +169,7 @@ type IconName =
   | 'landmark' | 'file' | 'sun' | 'moon' | 'chevronLeft' | 'chevronRight'
   | 'bell' | 'grid' | 'refresh' | 'save' | 'pencil' | 'x' | 'plus'
   | 'zap' | 'check' | 'paperclip' | 'eye' | 'eyeOff' | 'download'
-  | 'mail' | 'lock' | 'logout'
+  | 'mail' | 'lock' | 'logout' | 'menu'
 
 const ICONS: Record<IconName, React.ReactNode> = {
   dashboard: <><rect width="7" height="9" x="3" y="3" rx="1.5" /><rect width="7" height="5" x="14" y="3" rx="1.5" /><rect width="7" height="9" x="14" y="12" rx="1.5" /><rect width="7" height="5" x="3" y="16" rx="1.5" /></>,
@@ -200,6 +200,7 @@ const ICONS: Record<IconName, React.ReactNode> = {
   mail: <><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></>,
   lock: <><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>,
   logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></>,
+  menu: <><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="18" y2="18" /></>,
 }
 
 function Icon({ name, className = 'w-5 h-5', strokeWidth = 1.75 }: { name: IconName; className?: string; strokeWidth?: number }) {
@@ -2082,6 +2083,7 @@ export default function App() {
   const [dark, setDark] = useState(true)
   const [section, setSection] = useState('inicio')
   const [collapsed, setCollapsed] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [loadingDB, setLoadingDB] = useState(true)
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<string | null>(null)
@@ -2326,7 +2328,14 @@ export default function App() {
     <div className={dark ? 'dark' : ''}>
       <div className="min-h-screen flex bg-slate-100 dark:bg-[#0a0f1d] bg-gradient-to-br from-slate-100 to-slate-200/60 dark:from-[#0a0f1d] dark:to-[#0d1424] transition-colors duration-200">
 
-        <aside className={`${collapsed ? 'w-[72px]' : 'w-64'} shrink-0 flex flex-col bg-white/90 dark:bg-gray-800/60 backdrop-blur-xl border-r border-slate-200/80 dark:border-white/5 transition-all duration-300`}>
+        {mobileMenuOpen && (
+          <div
+            className="fixed inset-0 bg-black/40 z-30 md:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+        )}
+
+        <aside className={`${collapsed ? 'w-[72px]' : 'w-64'} ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-40 md:relative md:translate-x-0 shrink-0 flex flex-col bg-white/90 dark:bg-gray-800/60 backdrop-blur-xl border-r border-slate-200/80 dark:border-white/5 transition-all duration-300`}>
           <div className="flex items-center justify-between px-4 py-4 border-b border-slate-200/80 dark:border-white/5 min-h-[68px]">
             <div className="flex items-center gap-3 min-w-0">
               <div className="grid place-items-center w-10 h-10 shrink-0 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-glow">
@@ -2339,10 +2348,16 @@ export default function App() {
                 </div>
               )}
             </div>
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <Icon name="x" className="w-4 h-4" strokeWidth={2.25} />
+            </button>
             {!collapsed && (
               <button
                 onClick={() => setCollapsed(c => !c)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors"
+                className="hidden md:block p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors"
               >
                 <Icon name="chevronLeft" className="w-4 h-4" strokeWidth={2.25} />
               </button>
@@ -2352,7 +2367,7 @@ export default function App() {
           {collapsed && (
             <button
               onClick={() => setCollapsed(false)}
-              className="mx-auto mt-3 p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors"
+              className="hidden md:block mx-auto mt-3 p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors"
             >
               <Icon name="chevronRight" className="w-4 h-4" strokeWidth={2.25} />
             </button>
@@ -2364,7 +2379,7 @@ export default function App() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setSection(item.id)}
+                  onClick={() => { setSection(item.id); setMobileMenuOpen(false) }}
                   title={collapsed ? item.label : undefined}
                   className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 ${
                     active
@@ -2401,6 +2416,12 @@ export default function App() {
 
         <main className="flex-1 p-6 overflow-auto">
           <div className="max-w-5xl mx-auto">
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="md:hidden mb-4 p-2.5 rounded-xl bg-white/90 dark:bg-gray-800/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/5 text-slate-600 dark:text-gray-300 shadow-sm"
+            >
+              <Icon name="menu" className="w-5 h-5" />
+            </button>
             {section !== 'inicio' && (
               <div className="flex justify-end items-center gap-3 mb-5">
                 {lastSaved && !saveError && (
